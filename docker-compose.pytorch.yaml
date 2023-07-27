@@ -1,16 +1,36 @@
-version: '1'
+version: '3'
 
 services:
   tetris:
-    container_name: tetris-container
+    container_name: tetris-pytorch-container
     build:
       context: .
       dockerfile: ./docker/Dockerfile.pytorch
     volumes:
       - type: bind
-        source: "."
-        target: "/tetris"
+        source: .
+        target: /tetris
+      - type: bind
+        source: /tmp/.X11-unix
+        target: /tmp/.X11-unix
     environment:
-    - DISPLAY=host.docker.internal:0.0
+      # - DISPLAY=host.docker.internal:1
+      # - DISPLAY=localhost$DISPLAY #DISPLAY=$DISPLAY  # 
+      # Display X Server GUI.
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      # WSLg
+      # - DISPLAY=$DISPLAY
+      - XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR
+      # GPUを使うための設定
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    # GPUを使うための設定
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - capabilities:
+    #           - gpu
     tty: true
     shm_size: 512m
