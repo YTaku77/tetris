@@ -2,7 +2,7 @@ version: '3'
 
 services:
   tetris:
-    container_name: tetris-container
+    container_name:  ${CON_NAME} #tetris-container
     build:
       context: .
       dockerfile: ./docker/Dockerfile.latest
@@ -30,6 +30,7 @@ services:
     # Display X Server GUI.
     - DISPLAY=${DISPLAY}
     - QT_X11_NO_MITSHM=1
+    - LIBGL_ALWAYS_INDIRECT=1
     # WSLg
     # - DISPLAY=$DISPLAY
     - XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR
