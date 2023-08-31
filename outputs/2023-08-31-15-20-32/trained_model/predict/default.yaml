@@ -2,12 +2,12 @@
 common:
   #### 学習用Weight
   ## File 指定
-  ft_weight: outputs/2023-08-31-15-20-32/trained_model/best_weight.pt
+  ft_weight: outputs/YYYY-MM-DD-hh-mm-ss/trained_model/best_weight.pt
   log_path: tensorboard
   time_disp: False
   #### 推論用Weight
   # File 指定
-  predict_weight: outputs/2023-08-31-15-20-32/trained_model/best_weight.pt
+  predict_weight: outputs/YYYY-MM-DD-hh-mm-ss/trained_model/best_weight.pt
 
   #### 第2model 有効
   weight2_available: False
@@ -20,7 +20,7 @@ common:
   predict_weight2_disable_index: 10
 model:
   name: DQN # 学習方式 (MLP DQN)
-  finetune: True # 以前の学習結果を利用する (True False)
+  finetune: False # 以前の学習結果を利用する (True False)
 state:
   dim: 4
 train:
@@ -73,9 +73,9 @@ train:
   move_down_flag: 0 # Move Down 有効化 #DQN限定
 
   #predict_next_flag: 1 # 次のテトリミノ予測有効化 # 20220831 無効
-  predict_next_num: 0 # 次のテトリミノ予測数 (0: 無効) #DQN限定
+  predict_next_num: 3 # 次のテトリミノ予測数 (0: 無効) #DQN限定
   predict_next_steps: 5 #  1つの手番で候補手をいくつ探すか #DQN限定
-  predict_next_num_train: 0 # 次のテトリミノ予測有効化 (学習時) (0: 無効) #DQN限定
+  predict_next_num_train: 3 # 次のテトリミノ予測有効化 (学習時) (0: 無効) #DQN限定
   predict_next_steps_train: 3 #  1つの手番で候補手をいくつ探すか (学習時) #DQN限定
 tetris:
   board_height: 22 # 画面ボード高さ 22 固定

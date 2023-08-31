@@ -1550,7 +1550,7 @@ class Block_Controller(object):
 
                 ######################
                 # ホールドしたものを比較
-                hold_action, hold_states, hold_predictions = self.get_hold_predictions(self.model, True, curr_backboard, GameStatus)
+                hold_action, hold_states = self.get_hold_predictions(self.model, True, curr_backboard, GameStatus)
 
                 all_states = next_states + hold_states
                 all_actions = next_actions + hold_action
@@ -1629,7 +1629,7 @@ class Block_Controller(object):
             move_action = all_actions[index]
             if length_states != None and index >= length_states:
                 hold_onoff = (1,)
-                if GameStatus['block_info']['holdShape']['index'] == "none" or GameStatus['block_info']['holdShape']['class'] == "none":
+                if GameStatus['block_info']['holdShape']['index'] == None or GameStatus['block_info']['holdShape']['class'] == None:
                     curr_shape_class = GameStatus["block_info"]["nextShapeList"]["element2"]["class"]
                 else:
                     curr_shape_class = GameStatus['block_info']['holdShape']['class']
@@ -1855,13 +1855,8 @@ class Block_Controller(object):
                     # 順伝搬し Q 値を取得 (model の __call__ ≒ forward)
                     predictions = self.model(all_states)[:, 0]
 
-                # 乱数が epsilon より小さい場合は
-                if random_action:
-                    # index を乱数とする
-                    index = randint(0, len(next_steps) - 1)
-                else:
-                    # index を推論の最大値とする
-                    index = torch.argmax(predictions).item()
+                # index を推論の最大値とする
+                index = torch.argmax(predictions).item()
                     
                 # 全予測の最大 q
                 # max_index_list = max(index_list_to_q, key=index_list_to_q.get)
@@ -1875,6 +1870,7 @@ class Block_Controller(object):
                 ### 画面ボードの次の状態一覧を action と states にわけ、states を連結
                 next_actions, next_states = zip(*next_steps.items())
                 all_actions = next_actions
+                length_states = None
                 next_states = torch.stack(next_states)
                 ## 順伝搬し Q 値を取得 (model の __call__ ≒ forward)
                 predictions = predict_model(next_states)[:, 0]
@@ -2048,7 +2044,7 @@ class Block_Controller(object):
     def get_hold_predictions(self, predict_model, is_train, curr_backboard, GameStatus): #search
         hold_piece_id = GameStatus['block_info']['holdShape']['index']
         hold_shape_class = GameStatus['block_info']['holdShape']['class']
-        if GameStatus['block_info']['holdShape']['index'] == "none" or GameStatus['block_info']['holdShape']['class'] == "none":
+        if GameStatus['block_info']['holdShape']['index'] == None or GameStatus['block_info']['holdShape']['class'] == None:
             next_steps = self.get_next_func(curr_backboard,
                                             GameStatus["block_info"]["nextShapeList"]["element2"]["index"],
                                             GameStatus["block_info"]["nextShapeList"]["element2"]["class"])
@@ -2057,7 +2053,8 @@ class Block_Controller(object):
             hold_shape_class = GameStatus['block_info']['holdShape']['class']
             next_steps = self.get_next_func(curr_backboard, hold_piece_id, hold_shape_class)
         # 画面ボードの次の状態一覧を action と states にわけ、states を連結
-        next_actions, next_states = zip(next_steps.items())
+        print(f'next_steps: {next_steps}')
+        next_actions, next_states = zip(*next_steps.items())
         next_states = torch.stack(next_states)
         # 学習モードの場合
         if is_train:
@@ -2078,7 +2075,7 @@ class Block_Controller(object):
 
         best_action = next_actions[index]
         best_state = next_states[index,:]
-        return best_action, best_state, predictions
+        return best_action, best_state #, predictions
         
 
     ####################################
