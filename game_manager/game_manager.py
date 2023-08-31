@@ -384,7 +384,7 @@ class Game_Manager(QMainWindow):
                 y_operation = self.nextMove["strategy"]["y_operation"]
                 # テトリミノ回転数
                 next_direction = self.nextMove["strategy"]["direction"]
-                use_hold_function = self.nextMove["strategy"]["use_hold_function"]
+                use_hold_function = self.nextMove["strategy"]["use_hold_function"] # ホールドするときに使用、str "y" を入れるとホールド/ホールド中のミノと交換
 
                 # if use_hold_function
                 self.tboard.hold_isdone = False

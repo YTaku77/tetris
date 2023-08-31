@@ -1355,9 +1355,10 @@ class Block_Controller(object):
     #報酬を計算(2次元用) 
     #reward_func から呼び出される
     ####################################
-    def step_v2(self, curr_backboard, action, curr_shape_class):
-        x0, direction0, third_y, forth_direction, fifth_x = action
+    def step_v2(self, curr_backboard, action, curr_shape_class): # TBD
+        x0, direction0, third_y, forth_direction, fifth_x, hold_mino = action
         ## 画面ボードデータをコピーして指定座標にテトリミノを配置し落下させた画面ボードとy座標を返す
+
         board, drop_y = self.getBoard(curr_backboard, curr_shape_class, direction0, x0, -1)
         ##ボードを２次元化
         reshape_board = self.get_reshape_backboard(board)
@@ -1447,7 +1448,7 @@ class Block_Controller(object):
     # 次の動作取得: ゲームコントローラから毎回呼ばれる
     ####################################
     def GetNextMove(self, nextMove, GameStatus, yaml_file=None,weight=None):
-        print("in Get Next Move")
+        # print("in Get Next Move")
 
         t1 = datetime.now()
         # RESET 関数設定 callback function 代入 (Game Over 時)
@@ -1547,19 +1548,38 @@ class Block_Controller(object):
                 #print(index_list_to_q)
                 #print("max")
 
+                ######################
+                # ホールドしたものを比較
+                hold_action, hold_states, hold_predictions = self.get_hold_predictions(self.model, True, curr_backboard, GameStatus)
+
+                all_states = next_states + hold_states
+                all_actions = next_actions + hold_action
+                length_states = len(all_states)
+                with torch.no_grad():
+                    # 順伝搬し Q 値を取得 (model の __call__ ≒ forward)
+                    predictions = self.model(all_states)[:, 0]
+
+                # 乱数が epsilon より小さい場合は
+                if random_action:
+                    # index を乱数とする
+                    index = randint(0, len(all_states) - 1)
+                else:
+                    # index を推論の最大値とする
+                    index = torch.argmax(predictions).item()
+
                 # 全予測の最大 q
-                max_index_list = max(index_list_to_q, key=index_list_to_q.get)
+                # max_index_list = max(index_list_to_q, key=index_list_to_q.get)
                 #print(max(index_list_to_q, key=index_list_to_q.get))
                 #print(max_index_list[0].item())
                 #print (len(next_steps))
                 #print("============================")
                 # 乱数が epsilon より小さい場合は
-                if random_action:
-                    # index を乱数とする
-                    index = randint(0, len(next_steps) - 1)
-                else:
-                    # 1手目の index 入手
-                    index = max_index_list[0].item()
+                # if random_action:
+                #     # index を乱数とする
+                #     index = randint(0, len(next_steps) - 1)
+                # else:
+                #     # 1手目の index 入手
+                #     index = max_index_list[0].item()
             else:
                 # 次の状態一覧の action と states で配列化
                 #    next_actions  = Tuple (テトリミノ画面ボードX座標, テトリミノ回転状態)　一覧
@@ -1567,6 +1587,8 @@ class Block_Controller(object):
                 next_actions, next_states = zip(*next_steps.items())
                 # next_states (画面ボード状態 一覧) のテンソルを連結 (画面ボード状態のlist の最初の要素に状態が追加された)
                 next_states = torch.stack(next_states)
+                all_states = next_states
+                all_actions = next_actions
 
                 ## GPU 使用できるときは使う
 #                if torch.cuda.is_available():
@@ -1579,22 +1601,22 @@ class Block_Controller(object):
                 # テンソルの勾配の計算を不可とする(Tensor.backward() を呼び出さないことが確実な場合)
                 with torch.no_grad():
                     # 順伝搬し Q 値を取得 (model の __call__ ≒ forward)
-                    predictions = self.model(next_states)[:, 0]
+                    predictions = self.model(all_states)[:, 0]
                     # predict = self.model(next_states)[:,:]
                     # predictions = predict[:,0]
                     # print("input: ", next_states)
                     # print("predict: ", predict[:,0])
-
+                length_states = None
                 # 乱数が epsilon より小さい場合は
                 if random_action:
                     # index を乱数とする
-                    index = randint(0, len(next_steps) - 1)
+                    index = randint(0, len(all_states) - 1)
                 else:
                     # index を推論の最大値とする
                     index = torch.argmax(predictions).item()
 
             # 次の action states を上記の index 元に決定
-            next_state = next_states[index, :]
+            next_state = all_states[index, :]
 
             # index にて次の action の決定 
             # action の list
@@ -1603,7 +1625,19 @@ class Block_Controller(object):
             # 2: 3番目 Y軸降下 (-1: で Drop)
             # 3: 4番目 テトリミノ回転 (Next Turn)
             # 4: 5番目 X軸移動 (Next Turn)
-            action = next_actions[index]
+            # 5: 6番目 ホールド
+            move_action = all_actions[index]
+            if length_states != None and index >= length_states:
+                hold_onoff = (1,)
+                if GameStatus['block_info']['holdShape']['index'] == "none" or GameStatus['block_info']['holdShape']['class'] == "none":
+                    curr_shape_class = GameStatus["block_info"]["nextShapeList"]["element2"]["class"]
+                else:
+                    curr_shape_class = GameStatus['block_info']['holdShape']['class']
+            else:
+                hold_onoff = (-1,)
+
+            action = move_action + hold_onoff
+            # print(f'action: {action}')
             
             # step, step_v2 により報酬計算
             reward = self.reward_func(curr_backboard, action, curr_shape_class)
@@ -1750,6 +1784,11 @@ class Block_Controller(object):
                 if self.debug_flag_move_down == 1:
                     print("Move Down: ", "(", action[0], ",", action[2], ")")
 
+            if action[5] >= 0:
+                nextMove["strategy"]["use_hold_function"] = 'y'
+            else:
+                nextMove["strategy"]["use_hold_function"] = 'n'
+
             ##########
             # 学習終了処理
             ##########
@@ -1804,17 +1843,38 @@ class Block_Controller(object):
                 #print(index_list_to_q)
                 #print("max")
 
+                #####################
+                # ホールドしたものを比較
+                hold_action, hold_states = self.get_hold_predictions(self.model, True, curr_backboard, GameStatus)
+                
+                all_states = next_states + hold_states
+                all_actions = next_actions + hold_action
+                
+                length_states = len(all_states)
+                with torch.no_grad():
+                    # 順伝搬し Q 値を取得 (model の __call__ ≒ forward)
+                    predictions = self.model(all_states)[:, 0]
+
+                # 乱数が epsilon より小さい場合は
+                if random_action:
+                    # index を乱数とする
+                    index = randint(0, len(next_steps) - 1)
+                else:
+                    # index を推論の最大値とする
+                    index = torch.argmax(predictions).item()
+                    
                 # 全予測の最大 q
-                max_index_list = max(index_list_to_q, key=index_list_to_q.get)
+                # max_index_list = max(index_list_to_q, key=index_list_to_q.get)
                 #print(max(index_list_to_q, key=index_list_to_q.get))
                 #print(max_index_list[0].item())
                 #print("============================")
                 # 1手目の index 入手
-                index = max_index_list[0].item()
+                # index = max_index_list[0].item()
 
             else:
                 ### 画面ボードの次の状態一覧を action と states にわけ、states を連結
                 next_actions, next_states = zip(*next_steps.items())
+                all_actions = next_actions
                 next_states = torch.stack(next_states)
                 ## 順伝搬し Q 値を取得 (model の __call__ ≒ forward)
                 predictions = predict_model(next_states)[:, 0]
@@ -1827,8 +1887,13 @@ class Block_Controller(object):
             # 2: 3番目 Y軸降下 (-1: で Drop)
             # 3: 4番目 テトリミノ回転 (Next Turn)
             # 4: 5番目 X軸移動 (Next Turn)
-            action = next_actions[index]
-            
+            # 5: 6番目 ホールド
+            move_action = all_actions[index]
+            if length_states != None and index >= length_states:
+                hold_onoff = (1,)
+            else:
+                hold_onoff = (-1,)
+            action = move_action + hold_onoff
             ########################
             ## 推論時 次の動作指定
             ###############################################
@@ -1861,6 +1926,12 @@ class Block_Controller(object):
                 # debug
                 if self.debug_flag_move_down == 1:
                     print("Move Down: ", "(", action[0], ",", action[2], ")")
+
+            if action[5] >= 0:
+                nextMove["strategy"]["use_hold_function"] = 'y'
+            else:
+                nextMove["strategy"]["use_hold_function"] = 'n'
+            
         ## 終了時刻
         if self.time_disp:
             print(datetime.now()-t1)
@@ -1960,6 +2031,55 @@ class Block_Controller(object):
 
         ## 次の予測一覧とQ値, および最初の action, state を返す
         return new_index_list, index_list_to_q, next_actions, next_states
+
+    ####################################
+    # テトリミノの予告に対して次の状態リストをTop num_steps個取得
+    # self: 
+    # predict_model: モデル指定
+    # is_train: 学習モード状態の場合 (no_gradにするため)
+    # GameStatus: GameStatus
+    # prev_steps: 前の手番の候補手リスト
+    # num_steps: 1つの手番で候補手をいくつ探すか
+    # next_order: いくつ先の手番か
+    # left: 何番目の手番まで探索するか
+    # index_list: 手番ごとのindexリスト
+    # index_list_to_q: 手番ごとのindexリストから Q 値への変換
+    ####################################
+    def get_hold_predictions(self, predict_model, is_train, curr_backboard, GameStatus): #search
+        hold_piece_id = GameStatus['block_info']['holdShape']['index']
+        hold_shape_class = GameStatus['block_info']['holdShape']['class']
+        if GameStatus['block_info']['holdShape']['index'] == "none" or GameStatus['block_info']['holdShape']['class'] == "none":
+            next_steps = self.get_next_func(curr_backboard,
+                                            GameStatus["block_info"]["nextShapeList"]["element2"]["index"],
+                                            GameStatus["block_info"]["nextShapeList"]["element2"]["class"])
+        else:
+            hold_piece_id = GameStatus['block_info']['holdShape']['index']
+            hold_shape_class = GameStatus['block_info']['holdShape']['class']
+            next_steps = self.get_next_func(curr_backboard, hold_piece_id, hold_shape_class)
+        # 画面ボードの次の状態一覧を action と states にわけ、states を連結
+        next_actions, next_states = zip(next_steps.items())
+        next_states = torch.stack(next_states)
+        # 学習モードの場合
+        if is_train:
+            ## GPU 使用できるときは使う
+#            if torch.cuda.is_available():
+#                next_states = next_states.cuda()
+            # テンソルの勾配の計算を不可とする
+            with torch.no_grad():
+                # 順伝搬し Q 値を取得 (model の __call__ ≒ forward)
+                predictions = predict_model(next_states)[:, 0]
+        # 推論モードの場合
+        else:
+            # 順伝搬し Q 値を取得 (model の __call__ ≒ forward)
+            predictions = predict_model(next_states)[:, 0]
+
+        # index を推論の最大値とする
+        index = torch.argmax(predictions).item()
+
+        best_action = next_actions[index]
+        best_state = next_states[index,:]
+        return best_action, best_state, predictions
+        
 
     ####################################
     # テトリミノが配置できる左端と右端の座標を返す
