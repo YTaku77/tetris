@@ -1,1 +1,1 @@
-outputs/2023-08-31-15-20-32/trained_model/best_weight.pt
+outputs/2023-09-22-14-35-44/trained_model/best_weight.pt

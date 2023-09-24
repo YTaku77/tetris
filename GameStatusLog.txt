@@ -1,0 +1,22 @@
+root@cf0e50ae22bf:/tetris# python start.py -m train  -d 1 -l 2 -t 1
+game_level: 2
+game_time: 1
+RANDOM_SEED: -1
+IS_MODE :train
+IS_NEXTSHAPEMODE :default
+OBSTACLE_HEIGHT: 0
+OBSTACLE_PROBABILITY: 0
+ALL_BLOCK_CLEAR_SCORE: 500
+USER_NAME: window_sample
+SHAPE_LIST_MAX: 6
+BLOCK_NUM_MAX: 180
+RESULT_LOG_JSON: result.json
+TRAIN_YAML: config/default.yaml
+PREDICT_WEIGHT: outputs/latest/best_weight.pt
+ART_CONFIG: default.json
+Python 3.10.12
+CompletedProcess(args='python --version', returncode=0, stderr='')
+GameStatus: {'field_info': {'width': 10, 'height': 22,
+'backboard': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+'withblock': [0, 0, 0, 0, 0, 6, 6, 0, 0, 0, 0, 0, 0, 0, 6, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]},
+'block_info': {'currentX': 5, 'currentY': 1, 'currentDirection': 0, 'currentShape': {'class': <board_manager.Shape object at 0x7efcd7a8f670>, 'index': 6, 'direction_range': (0, 1)}, 'nextShape': {'class': <board_manager.Shape object at 0x7efcd7a8f9d0>, 'index': 5, 'direction_range': (0,)}, 'nextShapeList': {'element0': {'class': <board_manager.Shape object at 0x7efcd7a8f670>, 'index': 6, 'direction_range': (0, 1)}, 'element1': {'class': <board_manager.Shape object at 0x7efcd7a8f9d0>, 'index': 5, 'direction_range': (0,)}, 'element2': {'class': <board_manager.Shape object at 0x7efcd7a8fa30>, 'index': 6, 'direction_range': (0, 1)}, 'element3': {'class': <board_manager.Shape object at 0x7efcd7a8fa90>, 'index': 3, 'direction_range': (0, 1, 2, 3)}, 'element4': {'class': <board_manager.Shape object at 0x7efcd7a8faf0>, 'index': 6, 'direction_range': (0, 1)}, 'element5': {'class': <board_manager.Shape object at 0x7efcd7a8fb50>, 'index': 1, 'direction_range': (0, 1)}}, 'holdShape': {'class': None, 'index': None, 'direction_range': None}}, 'judge_info': {'elapsed_time': 0.061, 'game_time': 1, 'gameover_count': 0, 'all_block_clear_count': 0, 'score': 0, 'line': 0, 'block_index': 1, 'block_num_max': 180, 'mode': 'train'}, 'debug_info': {'dropdownscore': 0, 'linescore': 0, 'line_score': {'line1': 100, 'line2': 300, 'line3': 700, 'line4': 1300, 'gameover': -500, 'all_block_clear': 500}, 'shape_info': {'shapeNone': {'index': 0, 'color': 'none'}, 'shapeI': {'index': 1, 'color': 'red'}, 'shapeL': {'index': 2, 'color': 'green'}, 'shapeJ': {'index': 3, 'color': 'purple'}, 'shapeT': {'index': 4, 'color': 'gold'}, 'shapeO': {'index': 5, 'color': 'pink'}, 'shapeS': {'index': 6, 'color': 'blue'}, 'shapeZ': {'index': 7, 'color': 'yellow'}}, 'line_score_stat': [0, 0, 0, 0], 'line_score_stat_len': [0, 0, 0, 0], 'shape_info_stat': [0, 0, 0, 0, 0, 0, 1, 0], 'random_seed': 1.6936431617855074e+16, 'obstacle_height': 0, 'obstacle_probability': 0, 'hold_isdone': False, 'allblockclear_isdone': False}}

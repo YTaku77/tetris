@@ -5,3 +5,8 @@ tmp.log
 **.DS_Store
 /result.json
 outputs/*
+#outputs/2023-07*
+#outputs/2023-08-0*
+#outputs/2023-08-1*
+#outputs/2023-08-31-13*
+#outputs/2023-08-31-14*

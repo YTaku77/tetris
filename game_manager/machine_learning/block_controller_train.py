@@ -1355,9 +1355,17 @@ class Block_Controller(object):
     #報酬を計算(2次元用) 
     #reward_func から呼び出される
     ####################################
-    def step_v2(self, curr_backboard, action, curr_shape_class): # TBD
+    def step_v2(self, curr_backboard, action, curr_shape_class, GameStatus): # TBD
         x0, direction0, third_y, forth_direction, fifth_x, hold_mino = action
+        # print(f'action: {action}')
+        # print(f'hold_mino: {hold_mino}')
+        
         ## 画面ボードデータをコピーして指定座標にテトリミノを配置し落下させた画面ボードとy座標を返す
+        if hold_mino > 0:
+            if GameStatus['block_info']['holdShape']['index'] == None or GameStatus['block_info']['holdShape']['class'] == None:
+                curr_shape_class = GameStatus["block_info"]["nextShapeList"]["element1"]["class"]
+            else:
+                curr_shape_class = GameStatus['block_info']['holdShape']['class']
 
         board, drop_y = self.getBoard(curr_backboard, curr_shape_class, direction0, x0, -1)
         ##ボードを２次元化
@@ -1395,7 +1403,7 @@ class Block_Controller(object):
             reward -= (left_side_height - self.bumpiness_left_side_relax) * self.left_side_height_penalty
         # 3以上の段差を作った場合の罰
         reward -= over3_diff_count * self.over3_diff_penalty
-        print(over3_diff_count * self.over3_diff_penalty)
+        # print(over3_diff_count * self.over3_diff_penalty)
 
         self.epoch_reward += reward 
 
@@ -1411,7 +1419,7 @@ class Block_Controller(object):
     #報酬を計算(1次元用) 
     #reward_func から呼び出される
     ####################################
-    def step(self, curr_backboard, action, curr_shape_class):
+    def step(self, curr_backboard, action, curr_shape_class, GameStatus):
         x0, direction0, third_y, forth_direction, fifth_x = action
         # 画面ボードデータをコピーして指定座標にテトリミノを配置し落下させた画面ボードとy座標を返す
         board, drop_y = self.getBoard(curr_backboard, curr_shape_class, direction0, x0, -1)
@@ -1449,6 +1457,7 @@ class Block_Controller(object):
     ####################################
     def GetNextMove(self, nextMove, GameStatus, yaml_file=None,weight=None):
         # print("in Get Next Move")
+        # print(f'GameStatus: {GameStatus}')
 
         t1 = datetime.now()
         # RESET 関数設定 callback function 代入 (Game Over 時)
@@ -1462,7 +1471,7 @@ class Block_Controller(object):
         if self.init_train_parameter_flag == False:
             self.init_train_parameter_flag = True
             self.set_parameter(yaml_file=yaml_file,predict_weight=weight)        
-        self.ind =GameStatus["block_info"]["currentShape"]["index"]
+        self.index =GameStatus["block_info"]["currentShape"]["index"]
         curr_backboard = GameStatus["field_info"]["backboard"]
 
         ##################
@@ -1538,34 +1547,36 @@ class Block_Controller(object):
                 ##########################
                 self.model.train()
                 # index_list [1番目index, 2番目index, 3番目index ...] => q
-                index_list = []
+                # index_list = []
                 # index_list_to_q (1番目index, 2番目index, 3番目index ...) => q
-                index_list_to_q = {}
+                # index_list_to_q = {}
                 ######################
                 # 次の予測を上位predict_next_steps_trainつ実施, 1番目からpredict_next_num_train番目まで予測
-                index_list, index_list_to_q, next_actions, next_states \
-                            = self.get_predictions(self.model, True, GameStatus, next_steps, self.predict_next_steps_train, 1, self.predict_next_num_train, index_list, index_list_to_q, -60000)
+                # index_list, index_list_to_q, next_actions, next_states \
+                            # = self.get_predictions(self.model, True, GameStatus, next_steps, self.predict_next_steps_train, 1, self.predict_next_num_train, index_list, index_list_to_q, -60000)
                 #print(index_list_to_q)
                 #print("max")
 
                 ######################
                 # ホールドしたものを比較
-                hold_action, hold_states = self.get_hold_predictions(self.model, True, curr_backboard, GameStatus)
+                hold_action, hold_state, hold_flag = self.get_hold_predictions(self.model, True, curr_backboard, GameStatus)
 
-                all_states = next_states + hold_states
-                all_actions = next_actions + hold_action
-                length_states = len(all_states)
-                with torch.no_grad():
+                next_state = hold_state
+                move_action = hold_action
+                # all_states = next_states + hold_states
+                # all_actions = next_actions + hold_action
+                # length_states = len(all_states)
+                # with torch.no_grad():
                     # 順伝搬し Q 値を取得 (model の __call__ ≒ forward)
-                    predictions = self.model(all_states)[:, 0]
+                    # predictions = self.model(all_states)[:, 0]
 
                 # 乱数が epsilon より小さい場合は
-                if random_action:
+                # if random_action:
                     # index を乱数とする
-                    index = randint(0, len(all_states) - 1)
-                else:
+                    # index = randint(0, len(all_states) - 1)
+                # else:
                     # index を推論の最大値とする
-                    index = torch.argmax(predictions).item()
+                    # index = torch.argmax(predictions).item()
 
                 # 全予測の最大 q
                 # max_index_list = max(index_list_to_q, key=index_list_to_q.get)
@@ -1606,7 +1617,7 @@ class Block_Controller(object):
                     # predictions = predict[:,0]
                     # print("input: ", next_states)
                     # print("predict: ", predict[:,0])
-                length_states = None
+                hold_flag = -1
                 # 乱数が epsilon より小さい場合は
                 if random_action:
                     # index を乱数とする
@@ -1614,9 +1625,12 @@ class Block_Controller(object):
                 else:
                     # index を推論の最大値とする
                     index = torch.argmax(predictions).item()
+                next_state = all_states[index, :]
+                move_action = all_actions[index]
 
             # 次の action states を上記の index 元に決定
-            next_state = all_states[index, :]
+            # next_state = all_states[index, :]
+
 
             # index にて次の action の決定 
             # action の list
@@ -1626,11 +1640,10 @@ class Block_Controller(object):
             # 3: 4番目 テトリミノ回転 (Next Turn)
             # 4: 5番目 X軸移動 (Next Turn)
             # 5: 6番目 ホールド
-            move_action = all_actions[index]
-            if length_states != None and index >= length_states:
+            if hold_flag > 0:
                 hold_onoff = (1,)
                 if GameStatus['block_info']['holdShape']['index'] == None or GameStatus['block_info']['holdShape']['class'] == None:
-                    curr_shape_class = GameStatus["block_info"]["nextShapeList"]["element2"]["class"]
+                    curr_shape_class = GameStatus["block_info"]["nextShapeList"]["element1"]["class"]
                 else:
                     curr_shape_class = GameStatus['block_info']['holdShape']['class']
             else:
@@ -1640,7 +1653,7 @@ class Block_Controller(object):
             # print(f'action: {action}')
             
             # step, step_v2 により報酬計算
-            reward = self.reward_func(curr_backboard, action, curr_shape_class)
+            reward = self.reward_func(curr_backboard, action, curr_shape_class, GameStatus)
             
             done = False #game over flag
             
@@ -1832,31 +1845,35 @@ class Block_Controller(object):
             # 次のテトリミノ予測
             if self.predict_next_num > 0:
                 # index_list [1番目index, 2番目index, 3番目index ...] => q
-                index_list = []
+                # index_list = []
                 # index_list_to_q (1番目index, 2番目index, 3番目index ...) => q
-                index_list_to_q = {}
+                # index_list_to_q = {}
                 ######################
                 # 次の予測を上位predict_next_stepsつ実施, 1番目からpredict_next_num番目まで予測
-                index_list, index_list_to_q, next_actions, next_states \
-                            = self.get_predictions(predict_model, False, GameStatus, next_steps, self.predict_next_steps, 
-                                1, self.predict_next_num, index_list, index_list_to_q, -60000)
+                # index_list, index_list_to_q, next_actions, next_states \
+                #             = self.get_predictions(predict_model, False, GameStatus, next_steps, self.predict_next_steps, 
+                #                 1, self.predict_next_num, index_list, index_list_to_q, -60000)
                 #print(index_list_to_q)
                 #print("max")
 
                 #####################
                 # ホールドしたものを比較
-                hold_action, hold_states = self.get_hold_predictions(self.model, True, curr_backboard, GameStatus)
+
+                hold_action, hold_state, hold_flag = self.get_hold_predictions(self.model, True, curr_backboard, GameStatus)
+
+                next_state = hold_state
+                move_action = hold_action
                 
-                all_states = next_states + hold_states
-                all_actions = next_actions + hold_action
+                # all_states = next_states + hold_states
+                # all_actions = next_actions + hold_action
                 
-                length_states = len(all_states)
-                with torch.no_grad():
+                # length_states = len(all_states)
+                # with torch.no_grad():
                     # 順伝搬し Q 値を取得 (model の __call__ ≒ forward)
-                    predictions = self.model(all_states)[:, 0]
+                    # predictions = self.model(all_states)[:, 0]
 
                 # index を推論の最大値とする
-                index = torch.argmax(predictions).item()
+                # index = torch.argmax(predictions).item()
                     
                 # 全予測の最大 q
                 # max_index_list = max(index_list_to_q, key=index_list_to_q.get)
@@ -1870,12 +1887,15 @@ class Block_Controller(object):
                 ### 画面ボードの次の状態一覧を action と states にわけ、states を連結
                 next_actions, next_states = zip(*next_steps.items())
                 all_actions = next_actions
-                length_states = None
+                hold_flag = -1
                 next_states = torch.stack(next_states)
                 ## 順伝搬し Q 値を取得 (model の __call__ ≒ forward)
                 predictions = predict_model(next_states)[:, 0]
                 ## 最大値の index 取得
                 index = torch.argmax(predictions).item()
+
+                next_state = all_states[index, :]
+                move_action = all_actions[index]
 
             # 次の action を index を元に決定
             # 0: 2番目 X軸移動
@@ -1884,8 +1904,7 @@ class Block_Controller(object):
             # 3: 4番目 テトリミノ回転 (Next Turn)
             # 4: 5番目 X軸移動 (Next Turn)
             # 5: 6番目 ホールド
-            move_action = all_actions[index]
-            if length_states != None and index >= length_states:
+            if hold_flag > 0:
                 hold_onoff = (1,)
             else:
                 hold_onoff = (-1,)
@@ -1959,6 +1978,8 @@ class Block_Controller(object):
         # 画面ボードの次の状態一覧を action と states にわけ、states を連結
         next_actions, next_states = zip(*prev_steps.items())
         next_states = torch.stack(next_states)
+        # print(f'next_states: {next_states}')
+        
         # 学習モードの場合
         if is_train:
             ## GPU 使用できるときは使う
@@ -2042,20 +2063,120 @@ class Block_Controller(object):
     # index_list_to_q: 手番ごとのindexリストから Q 値への変換
     ####################################
     def get_hold_predictions(self, predict_model, is_train, curr_backboard, GameStatus): #search
+        
+        #### init parameter
+        # epsilon = 学習結果から乱数で変更する割合対象
+        # num_decay_epochs より前までは比例で初期 epsilon から減らしていく
+        # num_decay_ecpchs 以降は final_epsilon固定
+        epsilon = self.final_epsilon + (max(self.num_decay_epochs - self.epoch, 0) * (
+                self.initial_epsilon - self.final_epsilon) / self.num_decay_epochs)
+        u = random()
+        # epsilon より乱数 u が小さい場合フラグをたてる
+        random_action = u <= epsilon
+
+        curr_backboard = GameStatus["field_info"]["backboard"]
+
+        ##################
+        # default board definition
+        # self.width, self.height と重複
+        self.board_data_width = GameStatus["field_info"]["width"]
+        self.board_data_height = GameStatus["field_info"]["height"]
+
+        curr_shape_class = GameStatus["block_info"]["currentShape"]["class"]
+
+        ##################
+        # next shape info
+        curr_piece_id =GameStatus["block_info"]["currentShape"]["index"]
+
+        ###################
+        #画面ボードで テトリミノ回転状態 に落下させたときの次の状態一覧を作成
+        # next_steps
+        #    Key = Tuple (テトリミノ画面ボードX座標, テトリミノ回転状態)
+        #                 テトリミノ Move Down 降下 数, テトリミノ追加移動X座標, テトリミノ追加回転)
+        #    Value = 画面ボード状態
+        next_steps = self.get_next_func(curr_backboard, curr_piece_id, curr_shape_class) # FORCUS
+
+        index_list = []
+        # index_list_to_q (1番目index, 2番目index, 3番目index ...) => q
+        index_list_to_q = {}
+        ######################
+        # 次の予測を上位predict_next_steps_trainつ実施, 1番目からpredict_next_num_train番目まで予測
+        index_list, index_list_to_q, next_actions, next_states \
+                    = self.get_predictions(self.model, True, GameStatus, next_steps, self.predict_next_steps_train, 1, self.predict_next_num_train, index_list, index_list_to_q, -60000)
+        
+        # 全予測の最大 q
+        max_index_list = max(index_list_to_q, key=index_list_to_q.get)
+        #print(max(index_list_to_q, key=index_list_to_q.get))
+        #print(max_index_list[0].item())
+        #print (len(next_steps))
+        #print("============================")
+        # 乱数が epsilon より小さい場合は
+        if random_action:
+            # index を乱数とする
+            index = randint(0, len(next_steps) - 1)
+        else:
+            # 1手目の index 入手
+            index = max_index_list[0].item()
+        
+        # 次の action states を上記の index 元に決定
+        next_state = next_states[index, :]
+        next_action = next_actions[index]
+
         hold_piece_id = GameStatus['block_info']['holdShape']['index']
         hold_shape_class = GameStatus['block_info']['holdShape']['class']
         if GameStatus['block_info']['holdShape']['index'] == None or GameStatus['block_info']['holdShape']['class'] == None:
-            next_steps = self.get_next_func(curr_backboard,
-                                            GameStatus["block_info"]["nextShapeList"]["element2"]["index"],
-                                            GameStatus["block_info"]["nextShapeList"]["element2"]["class"])
+            next_steps_hold = self.get_next_func(curr_backboard,
+                                            GameStatus["block_info"]["nextShapeList"]["element1"]["index"],
+                                            GameStatus["block_info"]["nextShapeList"]["element1"]["class"])
+            index_list_hold = []
+            # index_list_to_q (1番目index, 2番目index, 3番目index ...) => q
+            index_list_to_q_hold = {}
+            # 次の予測を上位predict_next_steps_trainつ実施, 1番目からpredict_next_num_train番目まで予測
+            index_list_hold, index_list_to_q_hold, next_actions_hold, next_states_hold \
+                        = self.get_predictions(self.model, True, GameStatus, next_steps_hold, self.predict_next_steps_train, 2, self.predict_next_num_train, index_list_hold, index_list_to_q_hold, -60000)
+        
         else:
             hold_piece_id = GameStatus['block_info']['holdShape']['index']
             hold_shape_class = GameStatus['block_info']['holdShape']['class']
-            next_steps = self.get_next_func(curr_backboard, hold_piece_id, hold_shape_class)
+            next_steps_hold = self.get_next_func(curr_backboard, hold_piece_id, hold_shape_class)
+            index_list_hold = []
+            # index_list_to_q (1番目index, 2番目index, 3番目index ...) => q
+            index_list_to_q_hold = {}
+            # 次の予測を上位predict_next_steps_trainつ実施, 1番目からpredict_next_num_train番目まで予測
+            index_list_hold, index_list_to_q_hold, next_actions_hold, next_states_hold \
+                        = self.get_predictions(self.model, True, GameStatus, next_steps_hold, self.predict_next_steps_train, 1, self.predict_next_num_train, index_list_hold, index_list_to_q_hold, -60000)
+        
+        # 全予測の最大 q
+        max_index_list_hold = max(index_list_to_q_hold, key=index_list_to_q_hold.get)
+        #print(max(index_list_to_q, key=index_list_to_q.get))
+        #print(max_index_list[0].item())
+        #print (len(next_steps))
+        #print("============================")
+        # 乱数が epsilon より小さい場合は
+        if random_action:
+            # index を乱数とする
+            index_hold = randint(0, len(next_steps_hold) - 1)
+        else:
+            # 1手目の index 入手
+            index_hold = max_index_list_hold[0].item()
+
+        # 次の action states を上記の index 元に決定
+        next_state_hold = next_states_hold[index_hold, :]
+        next_action_hold = next_actions_hold[index_hold]
+
         # 画面ボードの次の状態一覧を action と states にわけ、states を連結
-        print(f'next_steps: {next_steps}')
-        next_actions, next_states = zip(*next_steps.items())
-        next_states = torch.stack(next_states)
+        # print(f'next_state: {next_state}')
+        # print(f'next_state size: {next_state.size()}')
+        # print(f'next_state_hold: {next_state_hold}')
+        # print(f'next_state_hold size: {next_state_hold.size()}')
+        # print(f'next_action: {next_action}')
+        # print(f'next_action_hold: {next_action_hold}')
+        state_list = torch.stack((next_state, next_state_hold), dim = 0)
+        action_list = [next_action, next_action_hold]
+        # print(f'state_list: {state_list}')
+        # print(f'state_list size: {state_list.size()}')
+        # print(f'action_list: {action_list}')
+
         # 学習モードの場合
         if is_train:
             ## GPU 使用できるときは使う
@@ -2064,18 +2185,34 @@ class Block_Controller(object):
             # テンソルの勾配の計算を不可とする
             with torch.no_grad():
                 # 順伝搬し Q 値を取得 (model の __call__ ≒ forward)
-                predictions = predict_model(next_states)[:, 0]
+                predictions = predict_model(state_list)[:, 0]
         # 推論モードの場合
         else:
             # 順伝搬し Q 値を取得 (model の __call__ ≒ forward)
-            predictions = predict_model(next_states)[:, 0]
+            predictions = predict_model(state_list)[:, 0]
 
+        ## num_steps 番目まで Top の index 取得
+        # top_indices = torch.topk(predictions, num_steps).indices
+        
+        # print(f'predictions: {predictions}')
+        # print(f'action_list: {action_list}, len(action_list): {len(action_list)}')
         # index を推論の最大値とする
         index = torch.argmax(predictions).item()
+        # print(f'index: {index}')
+        # print(f'next_action: {next_action}, len(next_action): {len(next_action)}')
 
-        best_action = next_actions[index]
-        best_state = next_states[index,:]
-        return best_action, best_state #, predictions
+        best_action = action_list[index]
+        best_state = state_list[index,:]
+        
+        # hold_flag=1 -> ホールドする
+        if index == 0:
+            hold_flag = -1
+        else:
+            hold_flag = 1
+        
+        # print(f'best_action: {best_action}, hold_flag: {hold_flag}')
+        # sys.exit()
+        return best_action, best_state, hold_flag #, predictions
         
 
     ####################################
@@ -2155,9 +2292,20 @@ class Block_Controller(object):
             _yy = 0
             # _yy を一つずつ落とすことによりブロックの落下下限を確認
             # _yy+テトリミノ座標y が 画面下限より上　かつ　(_yy +テトリミノ座標yが画面上限より上 または テトリミノ座標_x,_yy+テトリミノ座標_yのブロックがない)
-            while _yy + _y < self.board_data_height and (_yy + _y < 0 or board[(_y + _yy) * self.board_data_width + _x] == self.ShapeNone_index):
-                #_yy を足していく(下げていく)
-                _yy += 1
+            len_board = (_y + _yy) * self.board_data_width + _x
+            # print(f'type of board: {type(board)}')
+            # if type(board) is list:
+            if len_board < len(board):
+                while (((_yy + _y) < self.board_data_height) and (((_yy + _y) < 0) or (board[len_board] == self.ShapeNone_index))):
+                    #_yy を足していく(下げていく)
+                    _yy += 1
+                    len_board = (_y + _yy) * self.board_data_width + _x
+                    # print(f'len_board: {len_board} , len(board): {len(board)}')
+                    if len_board >= len(board):
+                        # _yy -= 1
+                        break
+
+
             _yy -= 1
             # 下限座標 dy /今までの下限より小さい(高い)なら __yy を落下下限として設定
             if _yy < dy:
